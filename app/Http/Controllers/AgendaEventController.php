@@ -6,6 +6,9 @@ use App\Models\AgendaEvent;
 use App\Models\TaskItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -46,9 +49,44 @@ class AgendaEventController extends Controller
                 'color' => $task->status === 'done' ? '#22c55e' : '#f59e0b',
             ]);
 
+        $currentYear = (int) now()->format('Y');
+        $holidayEvents = collect([$currentYear - 1, $currentYear, $currentYear + 1])
+            ->flatMap(fn (int $year) => $this->fetchHolidays($year));
+
         return Inertia::render('Agenda/Index', [
-            'events' => $events->concat($taskEvents)->values(),
+            'events' => $events->concat($taskEvents)->concat($holidayEvents)->values(),
         ]);
+    }
+
+    private function fetchHolidays(int $year): array
+    {
+        $holidays = Cache::remember("agenda.holidays.{$year}", now()->addDays(30), function () use ($year) {
+            try {
+                $response = Http::timeout(4)->get("https://brasilapi.com.br/api/feriados/v1/{$year}");
+
+                if (! $response->successful()) {
+                    return [];
+                }
+
+                return $response->json();
+            } catch (\Throwable $e) {
+                Log::warning('Falha ao buscar feriados', ['year' => $year, 'error' => $e->getMessage()]);
+
+                return [];
+            }
+        });
+
+        return collect($holidays)->map(fn (array $holiday) => [
+            'id' => 'holiday-'.$holiday['date'],
+            'type' => 'holiday',
+            'title' => $holiday['name'],
+            'description' => 'Feriado nacional',
+            'starts_at' => $holiday['date'],
+            'ends_at' => $holiday['date'],
+            'all_day' => true,
+            'location' => null,
+            'color' => '#16a34a',
+        ])->all();
     }
 
     public function store(Request $request): RedirectResponse

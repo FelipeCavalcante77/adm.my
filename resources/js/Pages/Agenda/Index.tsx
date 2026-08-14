@@ -6,6 +6,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import AppLayout from '@/Layouts/AppLayout';
+import { confirmDelete, showToast } from '@/lib/swal';
 import { PageProps } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { format, getDay, parse, startOfWeek } from 'date-fns';
@@ -30,8 +31,8 @@ const localizer = dateFnsLocalizer({
 });
 
 interface RawAgendaItem {
-    id: number;
-    type: 'event' | 'task';
+    id: number | string;
+    type: 'event' | 'task' | 'holiday';
     title: string;
     description: string | null;
     starts_at: string;
@@ -47,8 +48,8 @@ interface AgendaProps {
 }
 
 interface RbcEvent extends CalendarEvent {
-    id: number;
-    type: 'event' | 'task';
+    id: number | string;
+    type: 'event' | 'task' | 'holiday';
     resource: RawAgendaItem;
 }
 
@@ -121,6 +122,11 @@ export default function Index({ events }: PageProps<AgendaProps>) {
             return;
         }
 
+        if (item.type === 'holiday') {
+            showToast(`${item.title} (feriado nacional)`);
+            return;
+        }
+
         setEditing(item);
         clearErrors();
         setData({
@@ -149,8 +155,10 @@ export default function Index({ events }: PageProps<AgendaProps>) {
         }
     };
 
-    const destroy = () => {
-        if (editing && confirm(`Excluir o evento "${editing.title}"?`)) {
+    const destroy = async () => {
+        if (!editing) return;
+
+        if (await confirmDelete(`Excluir o evento "${editing.title}"?`)) {
             router.delete(route('agenda.destroy', editing.id), {
                 onSuccess: () => setShowModal(false),
             });
@@ -189,12 +197,17 @@ export default function Index({ events }: PageProps<AgendaProps>) {
                                     backgroundColor:
                                         e.resource.color ?? '#6366f1',
                                     borderRadius: 6,
-                                    border: 'none',
+                                    border:
+                                        e.type === 'holiday'
+                                            ? '1px dashed #15803d'
+                                            : 'none',
                                     opacity: e.type === 'task' ? 0.85 : 1,
                                     fontStyle:
                                         e.type === 'task'
                                             ? 'italic'
                                             : 'normal',
+                                    fontWeight:
+                                        e.type === 'holiday' ? 600 : 400,
                                 },
                             };
                         }}
@@ -224,7 +237,8 @@ export default function Index({ events }: PageProps<AgendaProps>) {
                 >
                     gerencie tarefas aqui
                 </Link>
-                .
+                . Eventos em verde com borda tracejada são feriados
+                nacionais.
             </p>
 
             <Modal show={showModal} onClose={() => setShowModal(false)}>
