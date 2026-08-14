@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgendaEventController;
+use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimerController;
 use App\Http\Controllers\TipsController;
+use App\Http\Controllers\WeatherController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -56,6 +58,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 
     Route::get('/tips', [TipsController::class, 'index'])->name('tips.index');
+    Route::get('/weather', [WeatherController::class, 'index'])->name('weather.index');
+    Route::get('/currency', [CurrencyController::class, 'index'])->name('currency.index');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

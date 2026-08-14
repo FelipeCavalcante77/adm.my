@@ -6,14 +6,27 @@ import { motion } from 'framer-motion';
 import {
     AlertTriangle,
     Bell,
+    Bitcoin,
     Calendar,
     CheckCircle2,
     Clock,
+    CloudFog,
+    CloudLightning,
+    CloudRain,
+    Cloudy,
+    DollarSign,
+    Euro,
     ExternalLink,
     Lightbulb,
     ListTodo,
+    Moon,
     Newspaper,
     Pause,
+    Snowflake,
+    Sun,
+    TrendingDown,
+    TrendingUp,
+    Wind,
 } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import {
@@ -76,6 +89,69 @@ const tagLabels: Record<string, string> = {
     security: 'Segurança',
     productivity: 'Produtividade',
 };
+
+interface WeatherData {
+    location: string;
+    temperature: number;
+    humidity: number;
+    windSpeed: number;
+    isDay: boolean;
+    description: string;
+    icon: string;
+}
+
+const weatherIcons: Record<string, typeof Sun> = {
+    clear: Sun,
+    'partly-cloudy': Cloudy,
+    cloudy: Cloudy,
+    fog: CloudFog,
+    rain: CloudRain,
+    snow: Snowflake,
+    storm: CloudLightning,
+};
+
+function useWeather(): { weather: WeatherData | null; loading: boolean } {
+    const [weather, setWeather] = useState<WeatherData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        axios
+            .get<{ weather: WeatherData | null }>(route('weather.index'))
+            .then((res) => setWeather(res.data.weather))
+            .catch(() => setWeather(null))
+            .finally(() => setLoading(false));
+    }, []);
+
+    return { weather, loading };
+}
+
+interface CurrencyRate {
+    code: string;
+    label: string;
+    bid: number;
+    pctChange: number;
+}
+
+const currencyIcons: Record<string, typeof DollarSign> = {
+    USD: DollarSign,
+    EUR: Euro,
+    BTC: Bitcoin,
+};
+
+function useCurrency(): { rates: CurrencyRate[]; loading: boolean } {
+    const [rates, setRates] = useState<CurrencyRate[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        axios
+            .get<{ rates: CurrencyRate[] }>(route('currency.index'))
+            .then((res) => setRates(res.data.rates))
+            .catch(() => setRates([]))
+            .finally(() => setLoading(false));
+    }, []);
+
+    return { rates, loading };
+}
 
 function useTips(): { tips: TipsData | null; loading: boolean; error: boolean } {
     const [tips, setTips] = useState<TipsData | null>(null);
@@ -175,6 +251,13 @@ export default function Dashboard({
 }: PageProps<DashboardProps>) {
     const elapsed = useElapsed(runningEntry?.started_at ?? null);
     const { tips, loading: tipsLoading, error: tipsError } = useTips();
+    const { weather, loading: weatherLoading } = useWeather();
+    const { rates, loading: ratesLoading } = useCurrency();
+    const WeatherIcon = weather
+        ? weather.icon === 'clear' && !weather.isDay
+            ? Moon
+            : (weatherIcons[weather.icon] ?? Cloudy)
+        : Cloudy;
 
     const chartData = last7Days.map((d) => ({
         day: new Date(d.date + 'T00:00:00').toLocaleDateString('pt-BR', {
@@ -186,6 +269,88 @@ export default function Dashboard({
     return (
         <AppLayout header="Dashboard">
             <Head title="Dashboard" />
+
+            {((!weatherLoading && weather) ||
+                (!ratesLoading && rates.length > 0)) && (
+                <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {!weatherLoading && weather && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                        >
+                            <div className="flex items-center gap-3">
+                                <WeatherIcon className="h-8 w-8 text-amber-500" />
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        {weather.temperature}&deg;C &middot;{' '}
+                                        {weather.description}
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                        {weather.location}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="hidden items-center gap-4 text-xs text-gray-400 sm:flex">
+                                <span className="flex items-center gap-1">
+                                    <Wind className="h-3.5 w-3.5" />
+                                    {weather.windSpeed} km/h
+                                </span>
+                                <span>Umidade {weather.humidity}%</span>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {!ratesLoading && rates.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.05 }}
+                            className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                        >
+                            {rates.map((rate) => {
+                                const RateIcon =
+                                    currencyIcons[rate.code] ?? DollarSign;
+                                const isUp = rate.pctChange >= 0;
+                                const TrendIcon = isUp
+                                    ? TrendingUp
+                                    : TrendingDown;
+
+                                return (
+                                    <div
+                                        key={rate.code}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <RateIcon className="h-6 w-6 shrink-0 text-indigo-500" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                {rate.bid.toLocaleString(
+                                                    'pt-BR',
+                                                    {
+                                                        style: 'currency',
+                                                        currency: 'BRL',
+                                                    },
+                                                )}
+                                            </p>
+                                            <p
+                                                className={`flex items-center gap-0.5 text-xs ${
+                                                    isUp
+                                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                                        : 'text-red-600 dark:text-red-400'
+                                                }`}
+                                            >
+                                                <TrendIcon className="h-3 w-3" />
+                                                {rate.pctChange}%
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </motion.div>
+                    )}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 <Card delay={0}>
