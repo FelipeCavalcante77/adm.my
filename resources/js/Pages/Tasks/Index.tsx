@@ -5,16 +5,25 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import AppLayout from '@/Layouts/AppLayout';
+import { confirmDelete } from '@/lib/swal';
 import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { Pencil, Play, Plus, Trash2 } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { Paperclip, Pencil, Play, Plus, Trash2, Upload } from 'lucide-react';
+import { FormEventHandler, useRef, useState } from 'react';
 
 interface ProjectOption {
     id: number;
     name: string;
     color: string | null;
+}
+
+interface AttachmentRow {
+    id: number;
+    original_name: string;
+    size: number;
+    mime_type: string;
+    url: string;
 }
 
 interface TaskRow {
@@ -26,6 +35,13 @@ interface TaskRow {
     due_date: string | null;
     project_id: number | null;
     project: ProjectOption | null;
+    attachments: AttachmentRow[];
+}
+
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 interface TasksProps {
@@ -65,7 +81,12 @@ export default function Index({
     filters,
 }: PageProps<TasksProps>) {
     const [showModal, setShowModal] = useState(false);
-    const [editing, setEditing] = useState<TaskRow | null>(null);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const editing = editingId
+        ? (tasks.find((t) => t.id === editingId) ?? null)
+        : null;
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
 
     const { data, setData, post, processing, errors, clearErrors } =
         useForm<TaskForm>({
@@ -78,7 +99,7 @@ export default function Index({
         });
 
     const openCreate = () => {
-        setEditing(null);
+        setEditingId(null);
         clearErrors();
         setData({
             title: '',
@@ -92,7 +113,7 @@ export default function Index({
     };
 
     const openEdit = (task: TaskRow) => {
-        setEditing(task);
+        setEditingId(task.id);
         clearErrors();
         setData({
             title: task.title,
@@ -125,9 +146,38 @@ export default function Index({
         }
     };
 
-    const destroy = (task: TaskRow) => {
-        if (confirm(`Excluir a tarefa "${task.title}"?`)) {
+    const destroy = async (task: TaskRow) => {
+        if (await confirmDelete(`Excluir a tarefa "${task.title}"?`)) {
             router.delete(route('tasks.destroy', task.id));
+        }
+    };
+
+    const uploadAttachment = (file: File) => {
+        if (!editing) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        setUploading(true);
+        router.post(route('tasks.attachments.store', editing.id), formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => {
+                setUploading(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+        });
+    };
+
+    const deleteAttachment = async (attachment: AttachmentRow) => {
+        if (
+            await confirmDelete(
+                `Excluir o arquivo "${attachment.original_name}"?`,
+            )
+        ) {
+            router.delete(route('attachments.destroy', attachment.id), {
+                preserveScroll: true,
+            });
         }
     };
 
@@ -248,6 +298,12 @@ export default function Index({
                                                     ).toLocaleDateString(
                                                         'pt-BR',
                                                     )}
+                                                </span>
+                                            )}
+                                            {task.attachments.length > 0 && (
+                                                <span className="flex items-center gap-1 text-xs text-gray-400">
+                                                    <Paperclip className="h-3 w-3" />
+                                                    {task.attachments.length}
                                                 </span>
                                             )}
                                         </div>
@@ -410,6 +466,79 @@ export default function Index({
                             />
                         </div>
                     </div>
+
+                    {editing && (
+                        <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+                            <div className="flex items-center justify-between">
+                                <InputLabel value="Arquivos anexados" />
+                                <button
+                                    type="button"
+                                    disabled={uploading}
+                                    onClick={() =>
+                                        fileInputRef.current?.click()
+                                    }
+                                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-500 disabled:opacity-50 dark:text-indigo-400"
+                                >
+                                    <Upload className="h-3.5 w-3.5" />
+                                    {uploading
+                                        ? 'Enviando...'
+                                        : 'Anexar arquivo'}
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) uploadAttachment(file);
+                                    }}
+                                />
+                            </div>
+
+                            <ul className="mt-2 space-y-1.5">
+                                {editing.attachments.map((attachment) => (
+                                    <li
+                                        key={attachment.id}
+                                        className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700"
+                                    >
+                                        <a
+                                            href={attachment.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex min-w-0 items-center gap-2 text-gray-700 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400"
+                                        >
+                                            <Paperclip className="h-4 w-4 shrink-0" />
+                                            <span className="truncate">
+                                                {attachment.original_name}
+                                            </span>
+                                            <span className="shrink-0 text-xs text-gray-400">
+                                                (
+                                                {formatFileSize(
+                                                    attachment.size,
+                                                )}
+                                                )
+                                            </span>
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                deleteAttachment(attachment)
+                                            }
+                                            className="shrink-0 rounded-lg p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </li>
+                                ))}
+
+                                {editing.attachments.length === 0 && (
+                                    <li className="text-xs text-gray-400">
+                                        Nenhum arquivo anexado.
+                                    </li>
+                                )}
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="mt-6 flex justify-end gap-3">
                         <SecondaryButton onClick={() => setShowModal(false)}>

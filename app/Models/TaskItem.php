@@ -50,6 +50,11 @@ class TaskItem extends Model
         return $this->hasMany(Reminder::class);
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(TaskAttachment::class, 'task_item_id')->latest();
+    }
+
     public function activeTimeEntry(): ?TimeEntry
     {
         return $this->timeEntries()->whereNull('ended_at')->first();

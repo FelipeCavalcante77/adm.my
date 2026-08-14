@@ -19,7 +19,7 @@ class TaskController extends Controller
 
         $query = TaskItem::query()
             ->where('user_id', $userId)
-            ->with('project:id,name,color');
+            ->with(['project:id,name,color', 'attachments']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
