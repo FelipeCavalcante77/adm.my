@@ -3,6 +3,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AppLayout from '@/Layouts/AppLayout';
+import { confirmDelete } from '@/lib/swal';
 import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
@@ -80,7 +81,19 @@ function formatDuration(seconds: number | null): string {
     if (seconds === null) return '-';
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    return `${h}h ${m.toString().padStart(2, '0')}m`;
+    const s = seconds % 60;
+    return `${h}h ${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
+}
+
+function TimerSkeleton() {
+    return (
+        <div className="animate-pulse">
+            <div className="mx-auto h-4 w-40 rounded-full bg-white/20" />
+            <div className="mx-auto mt-4 h-14 w-72 max-w-full rounded-xl bg-white/20" />
+            <div className="mx-auto mt-3 h-5 w-48 rounded-full bg-white/20" />
+            <div className="mx-auto mt-6 h-12 w-40 rounded-xl bg-white/20" />
+        </div>
+    );
 }
 
 export default function Index({
@@ -91,6 +104,7 @@ export default function Index({
     const [selectedTask, setSelectedTask] = useState<string>(
         tasks[0] ? String(tasks[0].id) : '',
     );
+    const [isToggling, setIsToggling] = useState(false);
     const elapsed = useElapsed(runningEntry?.started_at ?? null);
 
     const { data, setData, post, processing, errors, reset } =
@@ -104,11 +118,21 @@ export default function Index({
 
     const start = () => {
         if (!selectedTask) return;
-        router.post(route('timer.start'), { task_item_id: selectedTask });
+        setIsToggling(true);
+        router.post(
+            route('timer.start'),
+            { task_item_id: selectedTask },
+            { onFinish: () => setIsToggling(false) },
+        );
     };
 
     const stop = () => {
-        router.post(route('timer.stop'));
+        setIsToggling(true);
+        router.post(
+            route('timer.stop'),
+            {},
+            { onFinish: () => setIsToggling(false) },
+        );
     };
 
     const submitManual: FormEventHandler = (e) => {
@@ -119,8 +143,8 @@ export default function Index({
         });
     };
 
-    const deleteEntry = (entry: EntryRow) => {
-        if (confirm('Excluir este registro de tempo?')) {
+    const deleteEntry = async (entry: EntryRow) => {
+        if (await confirmDelete('Excluir este registro de tempo?')) {
             router.delete(route('time-entries.destroy', entry.id));
         }
     };
@@ -135,7 +159,9 @@ export default function Index({
                 transition={{ duration: 0.3 }}
                 className="overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-br from-indigo-600 to-violet-700 p-8 text-center text-white shadow-lg dark:border-gray-800"
             >
-                {runningEntry ? (
+                {isToggling ? (
+                    <TimerSkeleton />
+                ) : runningEntry ? (
                     <>
                         <p className="text-sm font-medium uppercase tracking-widest text-indigo-100">
                             Em andamento
@@ -148,7 +174,8 @@ export default function Index({
                         </p>
                         <button
                             onClick={stop}
-                            className="mx-auto mt-6 flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-50"
+                            disabled={isToggling}
+                            className="mx-auto mt-6 flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-50 disabled:opacity-50"
                         >
                             <Square className="h-4 w-4" /> Parar
                         </button>
@@ -185,7 +212,7 @@ export default function Index({
                             </select>
                             <button
                                 onClick={start}
-                                disabled={!selectedTask}
+                                disabled={!selectedTask || isToggling}
                                 className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-indigo-700 shadow-md transition hover:bg-indigo-50 disabled:opacity-50"
                             >
                                 <Play className="h-4 w-4" /> Iniciar
