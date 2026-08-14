@@ -5,6 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import AppLayout from '@/Layouts/AppLayout';
+import { confirmDelete } from '@/lib/swal';
 import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
@@ -106,8 +107,8 @@ export default function Index({ reminders, tasks }: PageProps<RemindersProps>) {
         );
     };
 
-    const destroy = (reminder: ReminderRow) => {
-        if (confirm(`Excluir o lembrete "${reminder.title}"?`)) {
+    const destroy = async (reminder: ReminderRow) => {
+        if (await confirmDelete(`Excluir o lembrete "${reminder.title}"?`)) {
             router.delete(route('reminders.destroy', reminder.id));
         }
     };

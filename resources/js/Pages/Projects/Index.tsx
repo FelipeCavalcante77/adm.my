@@ -6,6 +6,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import AppLayout from '@/Layouts/AppLayout';
+import { confirmDelete } from '@/lib/swal';
 import { PageProps } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
@@ -86,8 +87,8 @@ export default function Index({ projects }: PageProps<ProjectsProps>) {
         });
     };
 
-    const destroy = (project: ProjectRow) => {
-        if (confirm(`Excluir o projeto "${project.name}"?`)) {
+    const destroy = async (project: ProjectRow) => {
+        if (await confirmDelete(`Excluir o projeto "${project.name}"?`)) {
             router.delete(route('projects.destroy', project.id));
         }
     };

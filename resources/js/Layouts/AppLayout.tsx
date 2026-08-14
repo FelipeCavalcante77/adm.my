@@ -1,4 +1,5 @@
 import Dropdown from '@/Components/Dropdown';
+import { useTheme } from '@/lib/theme';
 import { Link, usePage } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -10,6 +11,8 @@ import {
     LayoutDashboard,
     ListTodo,
     Menu,
+    Moon,
+    Sun,
     Timer,
     X,
 } from 'lucide-react';
@@ -139,6 +142,7 @@ export default function AppLayout({
     const user = usePage().props.auth.user;
     const { url } = usePage();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const { theme, toggleTheme } = useTheme();
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -203,6 +207,24 @@ export default function AppLayout({
                             )}
                         </div>
 
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={toggleTheme}
+                                aria-label={
+                                    theme === 'dark'
+                                        ? 'Ativar modo claro'
+                                        : 'Ativar modo escuro'
+                                }
+                                className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                            >
+                                {theme === 'dark' ? (
+                                    <Sun className="h-4 w-4" />
+                                ) : (
+                                    <Moon className="h-4 w-4" />
+                                )}
+                            </button>
+
                         <Dropdown>
                             <Dropdown.Trigger>
                                 <button
@@ -232,6 +254,7 @@ export default function AppLayout({
                                 </Dropdown.Link>
                             </Dropdown.Content>
                         </Dropdown>
+                        </div>
                     </div>
                 </header>
 
