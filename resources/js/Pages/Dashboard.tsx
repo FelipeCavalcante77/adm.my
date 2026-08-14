@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+import axios from 'axios';
 import { motion } from 'framer-motion';
 import {
     AlertTriangle,
@@ -8,7 +9,10 @@ import {
     Calendar,
     CheckCircle2,
     Clock,
+    ExternalLink,
+    Lightbulb,
     ListTodo,
+    Newspaper,
     Pause,
 } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
@@ -51,6 +55,42 @@ interface RunningEntry {
     task_item_id: number;
     started_at: string;
     task: { id: number; title: string } | null;
+}
+
+interface TechNewsItem {
+    id: number;
+    title: string;
+    url: string;
+    tag: string;
+    source: string;
+    published_at: string;
+}
+
+interface TipsData {
+    techNews: TechNewsItem[];
+    managementTip: string;
+}
+
+const tagLabels: Record<string, string> = {
+    ai: 'IA',
+    security: 'Segurança',
+    productivity: 'Produtividade',
+};
+
+function useTips(): { tips: TipsData | null; loading: boolean; error: boolean } {
+    const [tips, setTips] = useState<TipsData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        axios
+            .get<TipsData>(route('tips.index'))
+            .then((res) => setTips(res.data))
+            .catch(() => setError(true))
+            .finally(() => setLoading(false));
+    }, []);
+
+    return { tips, loading, error };
 }
 
 interface DashboardProps {
@@ -134,6 +174,7 @@ export default function Dashboard({
     last7Days,
 }: PageProps<DashboardProps>) {
     const elapsed = useElapsed(runningEntry?.started_at ?? null);
+    const { tips, loading: tipsLoading, error: tipsError } = useTips();
 
     const chartData = last7Days.map((d) => ({
         day: new Date(d.date + 'T00:00:00').toLocaleDateString('pt-BR', {
@@ -372,6 +413,86 @@ export default function Dashboard({
                     >
                         Ver agenda &rarr;
                     </Link>
+                </Card>
+            </div>
+
+            <div className="mt-6">
+                <Card delay={0.4}>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <div className="lg:col-span-2">
+                            <div className="flex items-center gap-2">
+                                <Newspaper className="h-4 w-4 text-indigo-500" />
+                                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    Novidades de tecnologia
+                                </h3>
+                            </div>
+
+                            {tipsLoading && (
+                                <ul className="mt-4 space-y-3">
+                                    {[0, 1, 2].map((i) => (
+                                        <li
+                                            key={i}
+                                            className="h-4 animate-pulse rounded bg-gray-100 dark:bg-gray-800"
+                                        />
+                                    ))}
+                                </ul>
+                            )}
+
+                            {!tipsLoading && tipsError && (
+                                <p className="mt-4 text-sm text-gray-400">
+                                    Não foi possível carregar novidades agora.
+                                </p>
+                            )}
+
+                            {!tipsLoading &&
+                                !tipsError &&
+                                tips?.techNews.length === 0 && (
+                                    <p className="mt-4 text-sm text-gray-400">
+                                        Nenhuma novidade disponível no
+                                        momento.
+                                    </p>
+                                )}
+
+                            {!tipsLoading && !tipsError && tips && (
+                                <ul className="mt-4 space-y-3">
+                                    {tips.techNews.map((n) => (
+                                        <li key={n.id}>
+                                            <a
+                                                href={n.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="group flex items-start gap-2 rounded-lg px-1 py-1 hover:bg-gray-50 dark:hover:bg-gray-800/60"
+                                            >
+                                                <span className="mt-0.5 shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
+                                                    {tagLabels[n.tag] ??
+                                                        n.tag}
+                                                </span>
+                                                <span className="flex-1 truncate text-sm text-gray-700 group-hover:text-indigo-600 dark:text-gray-300 dark:group-hover:text-indigo-400">
+                                                    {n.title}
+                                                </span>
+                                                <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-300 group-hover:text-indigo-500" />
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
+                        <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 p-4 text-white">
+                            <div className="flex items-center gap-2">
+                                <Lightbulb className="h-4 w-4" />
+                                <h3 className="text-sm font-semibold">
+                                    Dica de gestão do dia
+                                </h3>
+                            </div>
+                            <p className="mt-3 text-sm leading-relaxed text-indigo-50">
+                                {tipsLoading
+                                    ? 'Carregando...'
+                                    : (tips?.managementTip ??
+                                      'Sem dica disponível hoje.')}
+                            </p>
+                        </div>
+                    </div>
                 </Card>
             </div>
         </AppLayout>

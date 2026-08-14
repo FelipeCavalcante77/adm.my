@@ -9,6 +9,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\TimerController;
+use App\Http\Controllers\TipsController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -50,6 +51,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/reminders/{reminder}', [ReminderController::class, 'destroy'])->name('reminders.destroy');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+
+    Route::get('/tips', [TipsController::class, 'index'])->name('tips.index');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
